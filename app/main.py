@@ -14,12 +14,23 @@ SNAPSHOT_DIR = Path("snapshots")
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Real-time object detection with Wikipedia details.")
-    p.add_argument("--camera", type=int, default=0, help="Camera index (default 0).")
+    p.add_argument(
+        "--source",
+        default="0",
+        help=(
+            "Video source. Either a webcam index ('0', '1', ...) or a stream URL "
+            "such as 'http://PHONE_IP:8080/video' (IP Webcam Android app) or an RTSP URL."
+        ),
+    )
     p.add_argument("--weights", default="yolov8n.pt", help="YOLOv8 weights path.")
     p.add_argument("--conf", type=float, default=0.4, help="Detection confidence threshold.")
-    p.add_argument("--width", type=int, default=1280, help="Capture width.")
-    p.add_argument("--height", type=int, default=720, help="Capture height.")
+    p.add_argument("--width", type=int, default=1280, help="Capture width (local webcams only).")
+    p.add_argument("--height", type=int, default=720, help="Capture height (local webcams only).")
     return p.parse_args()
+
+
+def _resolve_source(src: str):
+    return int(src) if src.isdigit() else src
 
 
 def main() -> int:
@@ -27,11 +38,19 @@ def main() -> int:
 
     detector = Detector(weights=args.weights, conf=args.conf)
 
-    cap = cv2.VideoCapture(args.camera)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, args.width)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, args.height)
+    source = _resolve_source(args.source)
+    print(f"[info] opening video source: {source!r}")
+    cap = cv2.VideoCapture(source)
+    if isinstance(source, int):
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, args.width)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, args.height)
     if not cap.isOpened():
-        print(f"ERROR: could not open camera index {args.camera}")
+        print(
+            f"ERROR: could not open video source {source!r}.\n"
+            "  - For a local webcam, try --source 0 or --source 1.\n"
+            "  - For an Android phone, install the free 'IP Webcam' app, tap\n"
+            "    'Start server', and use --source http://PHONE_IP:8080/video"
+        )
         return 1
 
     window = "Object Detector (press 'd' for details, 'q' to quit)"
