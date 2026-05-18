@@ -32,12 +32,23 @@ pip install -r requirements.txt
 
 First run downloads `yolov8n.pt` (~6 MB) automatically.
 
+**Linux only:** `pyttsx3` (TTS readout) talks to `espeak` under the hood — install it once:
+
+```bash
+sudo apt install espeak espeak-data libespeak1
+```
+
+macOS and Windows have built-in speech, no extra steps. If you don't want
+TTS at all, run with `--no-tts`.
+
 ### Run
 
 ```bash
 python -m app.main                       # default webcam (index 0)
 python -m app.main --source 1            # second webcam
 python -m app.main --conf 0.35 --width 1280 --height 720
+python -m app.main --lang hi             # Hindi Wikipedia details
+python -m app.main --lang te --no-tts    # Telugu, no speech
 ```
 
 ### Use an Android phone as the camera (free, no extra code)
@@ -73,11 +84,17 @@ The same `--source` flag works with any URL OpenCV can open, including:
 
 | Key | Action |
 |-----|--------|
-| `d` | Fetch Wikipedia details for the selected object |
+| `d` | Fetch Wikipedia details + speak them aloud |
+| `r` | Re-speak the current details |
+| `m` | Mute / unmute TTS |
 | `n` / `p` | Cycle through detected objects |
 | `c` | Clear the details panel |
 | `s` | Save a snapshot to `snapshots/` |
 | `q` | Quit |
+
+Each detected object now also gets a **stable ID** (e.g. `#3 person 87%`) so
+the same physical object keeps the same number across frames — pressing `d`
+on an object that's already on-screen won't refetch its Wikipedia entry.
 
 ### How "details" works
 

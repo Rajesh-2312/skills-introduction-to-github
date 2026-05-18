@@ -18,7 +18,8 @@ def draw_boxes(frame: np.ndarray, detections: List[Detection], selected_idx: int
         color = YELLOW if i == selected_idx else GREEN
         thickness = 3 if i == selected_idx else 2
         cv2.rectangle(frame, (x1, y1), (x2, y2), color, thickness)
-        tag = f"{det.label} {det.confidence:.0%}"
+        id_prefix = f"#{det.track_id} " if det.track_id is not None else ""
+        tag = f"{id_prefix}{det.label} {det.confidence:.0%}"
         (tw, th), _ = cv2.getTextSize(tag, FONT, 0.6, 1)
         cv2.rectangle(frame, (x1, y1 - th - 8), (x1 + tw + 6, y1), color, -1)
         cv2.putText(frame, tag, (x1 + 3, y1 - 5), FONT, 0.6, DARK, 1, cv2.LINE_AA)
@@ -81,10 +82,20 @@ def draw_info_panel(frame: np.ndarray, details: Optional[dict]) -> None:
         cv2.putText(frame, url[:max_chars], (x0 + pad, y1 - 10), FONT, 0.4, YELLOW, 1, cv2.LINE_AA)
 
 
-def draw_hud(frame: np.ndarray, fps: float, selected: Optional[str], total: int) -> None:
+def draw_hud(
+    frame: np.ndarray,
+    fps: float,
+    selected: Optional[str],
+    total: int,
+    lang: str = "en",
+    tts: str = "off",
+) -> None:
     h, w = frame.shape[:2]
-    text = f"FPS {fps:4.1f}  |  objects: {total}  |  selected: {selected or '-'}"
+    text = (
+        f"FPS {fps:4.1f}  |  objects: {total}  |  selected: {selected or '-'}"
+        f"  |  lang: {lang}  |  tts: {tts}"
+    )
     cv2.putText(frame, text, (10, 24), FONT, 0.6, YELLOW, 2, cv2.LINE_AA)
 
-    controls = "[d] details  [n/p] next/prev  [c] clear  [s] snapshot  [q] quit"
-    cv2.putText(frame, controls, (10, h - 14), FONT, 0.55, WHITE, 1, cv2.LINE_AA)
+    controls = "[d] details  [n/p] next/prev  [m] mute  [r] replay  [c] clear  [s] snap  [q] quit"
+    cv2.putText(frame, controls, (10, h - 14), FONT, 0.5, WHITE, 1, cv2.LINE_AA)
