@@ -1,0 +1,93 @@
+import argparse
+import time
+from collections import deque
+from pathlib import Path
+
+import cv2
+
+from .detector import Detector
+from .info_fetcher import fetch_details
+from .ui import draw_boxes, draw_hud, draw_info_panel
+
+SNAPSHOT_DIR = Path("snapshots")
+
+
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="Real-time object detection with Wikipedia details.")
+    p.add_argument("--camera", type=int, default=0, help="Camera index (default 0).")
+    p.add_argument("--weights", default="yolov8n.pt", help="YOLOv8 weights path.")
+    p.add_argument("--conf", type=float, default=0.4, help="Detection confidence threshold.")
+    p.add_argument("--width", type=int, default=1280, help="Capture width.")
+    p.add_argument("--height", type=int, default=720, help="Capture height.")
+    return p.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+
+    detector = Detector(weights=args.weights, conf=args.conf)
+
+    cap = cv2.VideoCapture(args.camera)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, args.width)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, args.height)
+    if not cap.isOpened():
+        print(f"ERROR: could not open camera index {args.camera}")
+        return 1
+
+    window = "Object Detector (press 'd' for details, 'q' to quit)"
+    cv2.namedWindow(window, cv2.WINDOW_NORMAL)
+
+    selected_idx = 0
+    active_details = None
+    frame_times: deque = deque(maxlen=30)
+
+    try:
+        while True:
+            t0 = time.time()
+            ok, frame = cap.read()
+            if not ok:
+                print("WARN: dropped frame")
+                continue
+
+            detections = detector.detect(frame)
+            if not detections:
+                selected_idx = 0
+            else:
+                selected_idx = max(0, min(selected_idx, len(detections) - 1))
+
+            draw_boxes(frame, detections, selected_idx)
+            draw_info_panel(frame, active_details)
+
+            frame_times.append(time.time() - t0)
+            fps = 1.0 / (sum(frame_times) / len(frame_times)) if frame_times else 0.0
+            selected_label = detections[selected_idx].label if detections else None
+            draw_hud(frame, fps, selected_label, len(detections))
+
+            cv2.imshow(window, frame)
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord("q"):
+                break
+            elif key == ord("d") and detections:
+                label = detections[selected_idx].label
+                print(f"[info] fetching details for: {label}")
+                active_details = fetch_details(label)
+            elif key == ord("n") and detections:
+                selected_idx = (selected_idx + 1) % len(detections)
+            elif key == ord("p") and detections:
+                selected_idx = (selected_idx - 1) % len(detections)
+            elif key == ord("c"):
+                active_details = None
+            elif key == ord("s"):
+                SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
+                fname = SNAPSHOT_DIR / f"snap_{int(time.time())}.jpg"
+                cv2.imwrite(str(fname), frame)
+                print(f"[info] saved {fname}")
+    finally:
+        cap.release()
+        cv2.destroyAllWindows()
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
