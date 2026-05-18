@@ -32,16 +32,31 @@ pip install -r requirements.txt
 
 First run downloads `yolov8n.pt` (~6 MB) automatically.
 
-**Linux only:** `pyttsx3` (TTS readout) talks to `espeak` under the hood, and
-OCR uses the `tesseract` binary — install both once:
+**Linux only system packages:**
 
 ```bash
-sudo apt install espeak espeak-data libespeak1 tesseract-ocr
+sudo apt install espeak espeak-data libespeak1 tesseract-ocr libportaudio2
 ```
 
-macOS: `brew install tesseract` (speech is built-in). Windows: install
-[Tesseract for Windows](https://github.com/UB-Mannheim/tesseract/wiki) (speech
-is built-in). If you don't want TTS or OCR, run with `--no-tts` / `--no-ocr`.
+`espeak` powers TTS, `tesseract-ocr` is for OCR, `libportaudio2` is needed by
+`sounddevice` for the voice command microphone.
+
+macOS: `brew install tesseract portaudio` (speech is built-in). Windows:
+install [Tesseract for Windows](https://github.com/UB-Mannheim/tesseract/wiki);
+speech and PortAudio are built-in. To disable any of these, use
+`--no-tts`, `--no-ocr`, or `--no-voice`.
+
+**Groq API key (optional, for LLM follow-up Q&A):**
+
+Sign up free at [console.groq.com](https://console.groq.com), create an API
+key, then export it before launching:
+
+```bash
+export GROQ_API_KEY=gsk_your_key_here
+```
+
+Without a key, voice commands and details still work — only the Q&A feature
+is disabled.
 
 ### Run
 
@@ -120,6 +135,33 @@ When you press `d`, the app also runs **Tesseract** on the selected object's
 crop. If readable text is found (a book title, a bottle label, a sign), it
 appears under the Wikipedia summary in the details panel and is included in
 the speech readout. Disable with `--no-ocr`.
+
+### Voice commands and follow-up Q&A
+
+The app listens on the microphone by default. Speak naturally:
+
+| You say | Same as pressing |
+|---|---|
+| "what is this", "tell me about this", "details" | `d` |
+| "next", "next one" | `n` |
+| "previous", "back" | `p` |
+| "mute", "be quiet" | `m` |
+| "repeat", "again" | `r` |
+| "clear", "hide" | `c` |
+| "quit", "exit", "stop" | `q` |
+
+**Free-form questions:** once details are showing, ask anything — e.g.
+"is this dishwasher safe?", "who invented it?", "what's the difference
+between this and a tablet?" — and the app routes the question to
+Groq's free Llama 3, using the Wikipedia summary and OCR text as context.
+The answer is shown in the panel and spoken aloud.
+
+Voice transcription is **fully offline** via `faster-whisper`. First run
+downloads ~150 MB of weights to `~/.cache/huggingface/`. The LLM step
+needs internet (and `GROQ_API_KEY`) but everything else works offline.
+
+Disable voice entirely with `--no-voice`. Use a smaller/larger whisper
+model with `--voice-model tiny|base|small|medium`.
 
 ### How "details" works
 
