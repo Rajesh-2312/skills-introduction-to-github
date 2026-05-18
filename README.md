@@ -32,14 +32,16 @@ pip install -r requirements.txt
 
 First run downloads `yolov8n.pt` (~6 MB) automatically.
 
-**Linux only:** `pyttsx3` (TTS readout) talks to `espeak` under the hood — install it once:
+**Linux only:** `pyttsx3` (TTS readout) talks to `espeak` under the hood, and
+OCR uses the `tesseract` binary — install both once:
 
 ```bash
-sudo apt install espeak espeak-data libespeak1
+sudo apt install espeak espeak-data libespeak1 tesseract-ocr
 ```
 
-macOS and Windows have built-in speech, no extra steps. If you don't want
-TTS at all, run with `--no-tts`.
+macOS: `brew install tesseract` (speech is built-in). Windows: install
+[Tesseract for Windows](https://github.com/UB-Mannheim/tesseract/wiki) (speech
+is built-in). If you don't want TTS or OCR, run with `--no-tts` / `--no-ocr`.
 
 ### Run
 
@@ -49,6 +51,9 @@ python -m app.main --source 1            # second webcam
 python -m app.main --conf 0.35 --width 1280 --height 720
 python -m app.main --lang hi             # Hindi Wikipedia details
 python -m app.main --lang te --no-tts    # Telugu, no speech
+
+# Zero-shot mode: detect anything you name (slower, ~500 MB model on first run)
+python -m app.main --prompts "wine bottle, guitar, red shoe, indoor plant"
 ```
 
 ### Use an Android phone as the camera (free, no extra code)
@@ -95,6 +100,26 @@ The same `--source` flag works with any URL OpenCV can open, including:
 Each detected object now also gets a **stable ID** (e.g. `#3 person 87%`) so
 the same physical object keeps the same number across frames — pressing `d`
 on an object that's already on-screen won't refetch its Wikipedia entry.
+
+### Detect anything (zero-shot)
+
+The default model knows 80 COCO classes. Pass `--prompts "..."` to swap in
+**OWL-ViT v2**, which detects anything you describe in natural language:
+
+```bash
+python -m app.main --prompts "wine bottle, fender stratocaster, samsung phone"
+```
+
+First run downloads ~500 MB of weights (cached in `~/.cache/huggingface/`).
+Inference on CPU is ~1–3 fps — for real-time use, stick with YOLOv8 and only
+flip to zero-shot when you need to find something outside the 80 classes.
+
+### Read labels on objects (OCR)
+
+When you press `d`, the app also runs **Tesseract** on the selected object's
+crop. If readable text is found (a book title, a bottle label, a sign), it
+appears under the Wikipedia summary in the details panel and is included in
+the speech readout. Disable with `--no-ocr`.
 
 ### How "details" works
 

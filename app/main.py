@@ -5,6 +5,7 @@ from pathlib import Path
 
 import cv2
 
+from . import ocr
 from .detector import Detector
 from .info_fetcher import fetch_details
 from .speech import Speaker, summarize_for_speech
@@ -36,6 +37,26 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--no-tts", action="store_true", help="Disable text-to-speech readout.")
     p.add_argument("--voice", default=None, help="pyttsx3 voice id (OS-specific). Default: system voice.")
     p.add_argument("--tts-rate", type=int, default=175, help="Speech rate in words per minute.")
+    p.add_argument(
+        "--prompts",
+        default=None,
+        help=(
+            "Comma-separated zero-shot prompts. When set, swaps YOLOv8 for OWL-ViT and "
+            "detects anything matching these prompts. Example: "
+            "--prompts 'wine bottle, guitar, red shoe'. Slow on CPU."
+        ),
+    )
+    p.add_argument(
+        "--zs-conf",
+        type=float,
+        default=0.15,
+        help="Confidence threshold for zero-shot detector (default 0.15).",
+    )
+    p.add_argument(
+        "--no-ocr",
+        action="store_true",
+        help="Disable Tesseract OCR fallback on the selected object.",
+    )
     return p.parse_args()
 
 
@@ -46,8 +67,20 @@ def _resolve_source(src: str):
 def main() -> int:
     args = parse_args()
 
-    detector = Detector(weights=args.weights, conf=args.conf, track=not args.no_track)
+    if args.prompts:
+        from .zero_shot import ZeroShotDetector
+
+        prompts = [p.strip() for p in args.prompts.split(",") if p.strip()]
+        detector = ZeroShotDetector(prompts=prompts, conf=args.zs_conf)
+        model_name = "OWL-ViT"
+    else:
+        detector = Detector(weights=args.weights, conf=args.conf, track=not args.no_track)
+        model_name = "YOLOv8"
+
     speaker = Speaker(enabled=not args.no_tts, voice_id=args.voice, rate=args.tts_rate)
+    ocr_enabled = not args.no_ocr and ocr.is_available()
+    if not args.no_ocr and not ocr_enabled:
+        print("[ocr] tesseract not found — install it or pass --no-ocr to silence this message.")
 
     source = _resolve_source(args.source)
     print(f"[info] opening video source: {source!r}")
@@ -98,7 +131,15 @@ def main() -> int:
             else:
                 selected_label = None
             tts_state = "off" if not speaker.available else ("muted" if speaker.muted else "on")
-            draw_hud(frame, fps, selected_label, len(detections), lang=args.lang, tts=tts_state)
+            draw_hud(
+                frame,
+                fps,
+                selected_label,
+                len(detections),
+                lang=args.lang,
+                tts=tts_state,
+                model=model_name,
+            )
 
             cv2.imshow(window, frame)
             key = cv2.waitKey(1) & 0xFF
@@ -112,13 +153,26 @@ def main() -> int:
                 else:
                     print(f"[info] fetching details for: {sel.label} (lang={args.lang})")
                     active_details = fetch_details(sel.label, lang=args.lang)
+
+                    if ocr_enabled:
+                        x1, y1, x2, y2 = sel.box
+                        h, w = frame.shape[:2]
+                        x1, y1 = max(0, x1), max(0, y1)
+                        x2, y2 = min(w, x2), min(h, y2)
+                        crop = frame[y1:y2, x1:x2] if (x2 > x1 and y2 > y1) else None
+                        ocr_text = ocr.extract_text(crop) if crop is not None else ""
+                        if ocr_text:
+                            print(f"[ocr] {ocr_text!r}")
+                        active_details["ocr_text"] = ocr_text
+
                     last_fetched_key = key_tuple
-                    speaker.speak(
-                        summarize_for_speech(
-                            active_details.get("title", ""),
-                            active_details.get("summary", ""),
-                        )
+                    spoken = summarize_for_speech(
+                        active_details.get("title", ""),
+                        active_details.get("summary", ""),
                     )
+                    if active_details.get("ocr_text"):
+                        spoken += f" Text on object: {active_details['ocr_text']}."
+                    speaker.speak(spoken)
             elif key == ord("r") and active_details:
                 speaker.speak(
                     summarize_for_speech(

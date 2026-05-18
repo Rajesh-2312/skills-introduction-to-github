@@ -62,21 +62,33 @@ def draw_info_panel(frame: np.ndarray, details: Optional[dict]) -> None:
     title = details.get("title") or details.get("label", "")
     summary = details.get("summary", "")
     url = details.get("url", "")
+    ocr_text = details.get("ocr_text", "")
 
     pad = 14
     cv2.putText(frame, title, (x0 + pad, y0 + 28), FONT, 0.75, YELLOW, 2, cv2.LINE_AA)
 
     max_chars = max(20, panel_w // 9)
     text_lines = _wrap(summary, max_chars)
+    # Reserve space for OCR section if present.
+    ocr_lines = _wrap(f"Text on object: {ocr_text}", max_chars) if ocr_text else []
+    reserved_for_ocr = (len(ocr_lines) + 1) * 20 if ocr_lines else 0
+
     y = y0 + 58
     line_h = 20
-    max_lines = max(1, (y1 - y - 30) // line_h)
+    max_lines = max(1, (y1 - y - 30 - reserved_for_ocr) // line_h)
     for line in text_lines[:max_lines]:
         cv2.putText(frame, line, (x0 + pad, y), FONT, 0.5, WHITE, 1, cv2.LINE_AA)
         y += line_h
-
     if len(text_lines) > max_lines:
         cv2.putText(frame, "...", (x0 + pad, y), FONT, 0.5, WHITE, 1, cv2.LINE_AA)
+        y += line_h
+
+    if ocr_lines:
+        y += 4
+        for i, line in enumerate(ocr_lines):
+            color = YELLOW if i == 0 else WHITE
+            cv2.putText(frame, line, (x0 + pad, y), FONT, 0.5, color, 1, cv2.LINE_AA)
+            y += line_h
 
     if url:
         cv2.putText(frame, url[:max_chars], (x0 + pad, y1 - 10), FONT, 0.4, YELLOW, 1, cv2.LINE_AA)
@@ -89,10 +101,11 @@ def draw_hud(
     total: int,
     lang: str = "en",
     tts: str = "off",
+    model: str = "YOLOv8",
 ) -> None:
     h, w = frame.shape[:2]
     text = (
-        f"FPS {fps:4.1f}  |  objects: {total}  |  selected: {selected or '-'}"
+        f"{model}  |  FPS {fps:4.1f}  |  objects: {total}  |  selected: {selected or '-'}"
         f"  |  lang: {lang}  |  tts: {tts}"
     )
     cv2.putText(frame, text, (10, 24), FONT, 0.6, YELLOW, 2, cv2.LINE_AA)
