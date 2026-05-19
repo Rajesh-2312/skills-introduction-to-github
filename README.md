@@ -76,6 +76,24 @@ python -m app.main --prompts "wine bottle, guitar, red shoe, indoor plant"
 > exactly which optional dependency is missing (mic? tesseract? Groq key?) so
 > you don't get a surprise mid-session.
 
+### Browser version (phones, tablets, other laptops on the same Wi-Fi)
+
+There's a second entry point that serves the live stream over HTTP, so any
+device on your network can open it in a browser:
+
+```bash
+python -m app.web --source 0 --port 5000
+# then open http://YOUR_PC_IP:5000/ from any phone / tablet / laptop
+```
+
+The page shows the annotated stream, a live list of detections, a language
+dropdown, and a "Speak details" toggle that uses the **browser's** built-in
+text-to-speech (so no pyttsx3/espeak setup is needed on the client). Click any
+detection to fetch its Wikipedia summary in the chosen language.
+
+Same `--source` rules apply: pass an IP Webcam URL to use a phone's camera
+while the laptop runs the inference and serves the page.
+
 ### Use an Android phone as the camera (free, no extra code)
 
 The Python app runs on your PC/laptop; the phone just streams its camera over

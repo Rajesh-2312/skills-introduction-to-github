@@ -128,6 +128,7 @@ CHECKS: List[Callable[[], CheckResult]] = [
     lambda: _check_import("sounddevice", OPTIONAL, "pip install sounddevice (or pass --no-voice)"),
     lambda: _check_import("webrtcvad", OPTIONAL, "pip install webrtcvad (or pass --no-voice)"),
     lambda: _check_import("groq", OPTIONAL, "pip install groq (only needed for LLM Q&A)"),
+    lambda: _check_import("flask", OPTIONAL, "pip install flask (only needed for app.web)"),
     lambda: _check_binary("tesseract", OPTIONAL, "apt install tesseract-ocr  /  brew install tesseract"),
     lambda: _check_binary(
         "espeak", OPTIONAL,

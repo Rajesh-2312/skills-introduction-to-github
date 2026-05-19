@@ -9,3 +9,4 @@ faster-whisper~=1.0
 sounddevice~=0.4.6
 webrtcvad~=2.0
 groq~=0.9
+flask~=3.0
