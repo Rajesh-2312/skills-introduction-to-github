@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Object Detector</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header>
+    <h1>Object Detector</h1>
+    <label>
+      Language:
+      <select id="lang">
+        <option value="en">English</option>
+        <option value="hi">Hindi</option>
+        <option value="te">Telugu</option>
+        <option value="ta">Tamil</option>
+        <option value="fr">French</option>
+        <option value="es">Spanish</option>
+        <option value="de">German</option>
+        <option value="ja">Japanese</option>
+        <option value="zh">Chinese</option>
+      </select>
+    </label>
+    <label>
+      <input type="checkbox" id="speak" checked> Speak details
+    </label>
+  </header>
+
+  <main>
+    <section id="stream-wrap">
+      <img id="stream" src="{{ url_for('stream') }}" alt="live stream">
+    </section>
+
+    <aside id="side">
+      <h2>Detections <span id="count" class="muted">(0)</span></h2>
+      <ul id="detections"></ul>
+
+      <div id="details" class="empty">
+        <p class="muted">Click a detection to see Wikipedia details.</p>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    const langSel = document.getElementById('lang');
+    const speakChk = document.getElementById('speak');
+    const ul = document.getElementById('detections');
+    const count = document.getElementById('count');
+    const details = document.getElementById('details');
+
+    async function refresh() {
+      try {
+        const r = await fetch('/api/detections');
+        const dets = await r.json();
+        count.textContent = `(${dets.length})`;
+        ul.innerHTML = '';
+        dets.forEach(d => {
+          const li = document.createElement('li');
+          const idPart = d.track_id !== null ? `#${d.track_id} ` : '';
+          li.textContent = `${idPart}${d.label} ${Math.round(d.confidence * 100)}%`;
+          li.dataset.label = d.label;
+          li.addEventListener('click', () => loadDetails(d.label));
+          ul.appendChild(li);
+        });
+      } catch (e) {
+        console.warn('refresh failed', e);
+      }
+    }
+
+    async function loadDetails(label) {
+      details.classList.remove('empty');
+      details.innerHTML = '<p class="muted">Loading...</p>';
+      try {
+        const url = `/api/details?label=${encodeURIComponent(label)}&lang=${langSel.value}`;
+        const r = await fetch(url);
+        const d = await r.json();
+        const safeSummary = d.summary ? d.summary : '(no summary available)';
+        details.innerHTML = `
+          <h2>${d.title || label}</h2>
+          ${d.image_url ? `<img class="thumb" src="${d.image_url}" alt="">` : ''}
+          <p>${safeSummary}</p>
+          ${d.ocr_text ? `<p><strong>Text on object:</strong> ${d.ocr_text}</p>` : ''}
+          ${d.url ? `<p><a href="${d.url}" target="_blank" rel="noopener">Read more on Wikipedia</a></p>` : ''}
+          <p class="muted">source: ${d.source || 'unknown'}</p>
+        `;
+        if (speakChk.checked && 'speechSynthesis' in window && safeSummary) {
+          speechSynthesis.cancel();
+          const u = new SpeechSynthesisUtterance(`${d.title || label}. ${safeSummary}`);
+          u.lang = langSel.value;
+          speechSynthesis.speak(u);
+        }
+      } catch (e) {
+        details.innerHTML = `<p class="muted">Failed to load details: ${e}</p>`;
+      }
+    }
+
+    setInterval(refresh, 500);
+    refresh();
+  </script>
+</body>
+</html>
