@@ -61,6 +61,7 @@ is disabled.
 ### Run
 
 ```bash
+python -m app.doctor                     # one-shot check: camera, mic, deps, tesseract, espeak, GROQ_API_KEY
 python -m app.main                       # default webcam (index 0)
 python -m app.main --source 1            # second webcam
 python -m app.main --conf 0.35 --width 1280 --height 720
@@ -70,6 +71,10 @@ python -m app.main --lang te --no-tts    # Telugu, no speech
 # Zero-shot mode: detect anything you name (slower, ~500 MB model on first run)
 python -m app.main --prompts "wine bottle, guitar, red shoe, indoor plant"
 ```
+
+> **First-run tip:** always run `python -m app.doctor` once. It will tell you
+> exactly which optional dependency is missing (mic? tesseract? Groq key?) so
+> you don't get a surprise mid-session.
 
 ### Use an Android phone as the camera (free, no extra code)
 
